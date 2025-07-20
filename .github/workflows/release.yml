@@ -1,0 +1,227 @@
+---
+# THIS FILE IS GENERATED! DO NOT EDIT! Maintained by Pulumi
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: go release
+on:
+  push:
+    tags:
+      - '*'
+permissions: {}
+jobs:
+  changelog:
+    name: Generate changelog
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release_body: ${{ steps.git-cliff.outputs.content }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Generate a changelog
+        id: git-cliff
+        uses: orhun/git-cliff-action@4a4a951bc43fafe41cd2348d181853f52356bee7 # v4.4.2
+        with:
+          config: .github/cliff.toml
+          args: -vv --current
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+
+  create-draft-release:
+    name: Create release as draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: [changelog]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Create release as draft
+        run: gh release create ${GITHUB_REF_NAME}  -t "Release ${GITHUB_REF_NAME}" -n "${RELEASE_BODY}" --draft
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BODY: ${{ needs.changelog.outputs.release_body }}
+
+  build-artifact:
+    name: Build binary
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            runner: ubuntu-latest
+          - os: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+          - os: darwin
+            arch: amd64
+            runner: macos-13
+          - os: darwin
+            arch: arm64
+            runner: macos-latest
+          - os: windows
+            arch: amd64
+            runner: windows-latest
+          - os: windows
+            arch: arm64
+            runner: windows-11-arm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: stable
+
+      - name: Extract metadata to build the binary
+        id: extract-metadata
+        run: |
+          # Get repo name
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+
+          # Get version
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+
+          # Set output
+          echo "BINARY_NAME=${REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "SBOM_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
+          echo "TAR_GZ_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
+
+      - name: Build binary
+        run: go build -o "${{ steps.extract-metadata.outputs.BINARY_NAME }}" -ldflags "-X main.version=${{ github.ref_name }}" main.go
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+
+      - name: Create tar.gz of binary with license and readme
+        run: tar -czf ${{ steps.extract-metadata.outputs.TAR_GZ_NAME }} ${{ steps.extract-metadata.outputs.BINARY_NAME }} LICENSE.txt LICENSE_en.txt README.md
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@cee1b8e05ae5b2593a75e197229729eabaa9f8ec # v0.20.2
+        with:
+          format: cyclonedx-json
+          artifact-name: ${{ steps.extract-metadata.outputs.SBOM_NAME }}
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: artifacts
+          path: |
+            ${{ steps.extract-metadata.outputs.TAR_GZ_NAME }}
+            ${{ steps.extract-metadata.outputs.SBOM_NAME }}
+          if-no-files-found: error
+
+  create-checksum:
+    name: Create checksum
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [build-artifact]
+    steps:
+      - name: Downloads artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: artifacts
+          path: /build
+
+      - name: Create checksum file
+        run: |
+          shopt -s nullglob
+          for archive in /build/*; do
+            CHECKSUM=$(sha256sum ${archive})
+            echo $CHECKSUM >> checksums.txt
+          done
+
+      - name: Upload checksum
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: artifacts
+          path: checksums.txt
+          if-no-files-found: error
+
+  sign-publish-artifact:
+    name: Sign and publish artifact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write # needed for signing the artifact with GitHub OIDC Token
+    needs: [create-checksum]
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+
+      - name: Downloads artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: artifacts
+          path: /artifacts
+
+      - name: Sign the artifacts with GitHub OIDC Token
+        env:
+          COSIGN_YES: true
+        run: |
+          shopt -s nullglob
+          for archive in /artifacts/*.tar.gz; do
+            archive_without_ext="${archive%.tar.gz}"
+            cosign sign-blob ${archive} --output-certificate ${archive_without_ext}.pem --output-signature ${archive_without_ext}.sig
+          done
+
+      - name: Attest SBOM
+        run: |
+          shopt -s nullglob
+          for sbom in /artifacts/*.sbom; do
+            sbom_without_ext="${sbom%.sbom}"
+            cosign attest-blob -y --type cyclonedx --predicate ${sbom} --output-attestation ${sbom_without_ext}.sbom.intoto.jsonl ${sbom_without_ext}.tar.gz
+          done
+
+      - name: Upload artifact to release
+        run: gh release upload ${{ github.ref }} /artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Go Proxy Indexing
+        run: |
+          MAJOR_VERSION=$(echo "${{ github.ref_name }}" | cut -d '.' -f 1 | sed 's/v//')
+
+          if [[ $MAJOR_VERSION -ge 2 ]]; then
+            curl https://sum.golang.org/lookup/github.com/${{ github.repository }}/v${MAJOR_VERSION}@${{ github.ref_name }}
+            curl https://proxy.golang.org/github.com/${{ github.repository }}/v${MAJOR_VERSION}/@v/${{ github.ref_name }}.info
+          else
+            curl https://sum.golang.org/lookup/github.com/${{ github.repository }}@${{ github.ref_name }}
+            curl https://proxy.golang.org/github.com/${{ github.repository }}/@v/${{ github.ref_name }}.info
+          fi
+
+  publish-release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: [create-draft-release, sign-publish-artifact]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Create release
+        run: gh release edit ${GITHUB_REF_NAME} --draft=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
