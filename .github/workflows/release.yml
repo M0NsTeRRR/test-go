@@ -198,6 +198,7 @@ jobs:
             curl https://sum.golang.org/lookup/github.com/${{ github.repository }}@${{ github.ref_name }}
             curl https://proxy.golang.org/github.com/${{ github.repository }}/@v/${{ github.ref_name }}.info
           fi
+
   build-push-docker:
     name: Build and publish docker
     runs-on: ubuntu-latest
@@ -303,7 +304,6 @@ jobs:
 
       - name: Create release
         run: gh release create ${GITHUB_REF_NAME}  -t "Release ${GITHUB_REF_NAME}" -n "${RELEASE_BODY}"
-        run: gh release edit ${GITHUB_REF_NAME} --draft=false
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
           RELEASE_BODY: ${{needs.changelog.outputs.release_body}}
