@@ -33,23 +33,11 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
 
 
-  get-version:
-    name: Get version
-    runs-on: ubuntu-latest
-    permissions: {}
-    outputs:
-      version: ${{ steps.get_version.outputs.VERSION }}
-    steps:
-      - name: Get the version
-        id: get_version
-        run: echo "VERSION=$(echo '${{ github.ref_name }}' | sed 's/^v//')" >> $GITHUB_OUTPUT
-
   build-artifact:
     name: Build binary
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-    needs: [get-version]
     strategy:
       fail-fast: false
       matrix:
@@ -83,9 +71,14 @@ jobs:
         with:
           go-version: stable
 
-      - name: Generate filename
+      - name: Generate filenames
         id: generate-filename
+        shell: bash
         run: |
+          # Get version
+          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+
+          # Set output
           echo "BINARY_NAME=${{ github.event.repo.name }}" >> $GITHUB_OUTPUT
           echo "SBOM_NAME=${{ github.event.repo.name }}-${{ needs.get-version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
           echo "TAR_GZ_NAME=${{ github.event.repo.name }}-${{ needs.get-version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
@@ -135,6 +128,7 @@ jobs:
         run: |
           shopt -s nullglob
           for archive in /tmp/artifacts/*.tar.gz; do
+            echo "Generate checksum for ${archive}"
             CHECKSUM=$(sha256sum ${archive})
             echo $CHECKSUM >> checksums.txt
           done
@@ -170,6 +164,7 @@ jobs:
         run: |
           shopt -s nullglob
           for archive in /tmp/artifacts/*.tar.gz; do
+            echo "Sign archive for ${archive}"
             archive_without_ext="${archive%.tar.gz}"
             cosign sign-blob ${archive} --output-certificate ${archive_without_ext}.pem --output-signature ${archive_without_ext}.sig
           done
@@ -178,6 +173,7 @@ jobs:
         run: |
           shopt -s nullglob
           for sbom in /tmp/artifacts/*.sbom; do
+            echo "Attest sbom file ${sbom}"
             sbom_without_ext="${sbom%.sbom}"
             cosign attest-blob -y --type cyclonedx --predicate ${sbom} --output-attestation ${sbom_without_ext}.sbom.intoto.jsonl ${sbom_without_ext}.tar.gz
           done
@@ -271,6 +267,7 @@ jobs:
       - name: Sign the images with GitHub OIDC Token
         run: |
           for tag in ${TAGS}; do
+            echo "Sign image for ${tag}"
             cosign sign -y --recursive ${tag}@${DIGEST}
           done
 
@@ -278,6 +275,7 @@ jobs:
         run: |
           shopt -s nullglob
           for tag in ${TAGS}; do
+            echo "Generate sbom for ${tag}"
             syft --output cyclonedx-json ${tag}@${DIGEST} > ${tag}@${DIGEST}.sbom
           done
 
@@ -285,6 +283,7 @@ jobs:
         run: |
           shopt -s nullglob
           for tag in ${TAGS}; do
+            echo "Attest image for ${tag}"
             cosign attest -y --recursive --type cyclonedx --predicate ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
           done
 
