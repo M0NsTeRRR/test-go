@@ -157,7 +157,7 @@ jobs:
           for archive in /tmp/artifacts/*.tar.gz; do
             echo "Generate checksum for ${archive}"
             CHECKSUM=$(sha256sum ${archive})
-            echo $CHECKSUM >> checksums.txt
+            echo $CHECKSUM >> /tmp/artifacts/checksums.txt
           done
 
       - name: Sign the artifacts with GitHub OIDC Token
@@ -191,12 +191,14 @@ jobs:
           MAJOR_VERSION=$(echo "${{ github.ref_name }}" | cut -d '.' -f 1 | sed 's/v//')
 
           if [[ $MAJOR_VERSION -ge 2 ]]; then
-            curl https://sum.golang.org/lookup/github.com/${{ github.repository }}/v${MAJOR_VERSION}@${{ github.ref_name }}
-            curl https://proxy.golang.org/github.com/${{ github.repository }}/v${MAJOR_VERSION}/@v/${{ github.ref_name }}.info
+            curl https://sum.golang.org/lookup/github.com/${REPOSITORY}/v${MAJOR_VERSION}@${{ github.ref_name }}
+            curl https://proxy.golang.org/github.com/${REPOSITORY@L}/v${MAJOR_VERSION}/@v/${{ github.ref_name }}.info
           else
-            curl https://sum.golang.org/lookup/github.com/${{ github.repository }}@${{ github.ref_name }}
-            curl https://proxy.golang.org/github.com/${{ github.repository }}/@v/${{ github.ref_name }}.info
+            curl https://sum.golang.org/lookup/github.com/${REPOSITORY}@${{ github.ref_name }}
+            curl https://proxy.golang.org/github.com/${REPOSITORY@L}/@v/${{ github.ref_name }}.info
           fi
+        env:
+          REPOSITORY: ${{ github.repository }}
 
   build-push-docker:
     name: Build and publish docker
@@ -274,23 +276,21 @@ jobs:
       - name: Sign the images with GitHub OIDC Token
         run: |
           for tag in ${TAGS}; do
-            echo "Sign image for ${tag}"
+            echo "Sign image for ${tag}@${DIGEST}"
             cosign sign -y --recursive ${tag}@${DIGEST}
           done
 
       - name: Generate SBOM
         run: |
-          shopt -s nullglob
           for tag in ${TAGS}; do
-            echo "Generate sbom for ${tag}"
+            echo "Generate sbom for ${tag}@${DIGEST}"
             syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
           done
 
       - name: Attest images with SBOM
         run: |
-          shopt -s nullglob
           for tag in ${TAGS}; do
-            echo "Attest image for ${tag}"
+            echo "Attest image for ${tag}@${DIGEST}"
             cosign attest -y --recursive --type cyclonedx --predicate ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
           done
 
