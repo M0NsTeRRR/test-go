@@ -32,29 +32,24 @@ jobs:
           OUTPUT: CHANGELOG.md
           GITHUB_REPO: ${{ github.repository }}
 
-  create-draft-release:
-    name: Create release as draft
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    needs: [changelog]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
 
-      - name: Create release as draft
-        run: gh release create ${GITHUB_REF_NAME}  -t "Release ${GITHUB_REF_NAME}" -n "${RELEASE_BODY}" --draft
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_BODY: ${{ needs.changelog.outputs.release_body }}
+  get-version:
+    name: Get version
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      version: ${{ steps.get_version.outputs.VERSION }}
+    steps:
+      - name: Get the version
+        id: get_version
+        run: echo "VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//') >> $GITHUB_OUTPUT
 
   build-artifact:
     name: Build binary
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
+    needs: [get-version]
     strategy:
       fail-fast: false
       matrix:
@@ -88,35 +83,28 @@ jobs:
         with:
           go-version: stable
 
-      - name: Extract metadata to build the binary
-        id: extract-metadata
+      - name: Generate filename
+        id: generate-filename
         run: |
-          # Get repo name
-          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
-
-          # Get version
-          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
-
-          # Set output
-          echo "BINARY_NAME=${REPO_NAME}" >> $GITHUB_OUTPUT
-          echo "SBOM_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
-          echo "TAR_GZ_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "BINARY_NAME=${{ github.event.repo.name }}" >> $GITHUB_OUTPUT
+          echo "SBOM_NAME=${{ github.event.repo.name }}-${{ needs.get-version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
+          echo "TAR_GZ_NAME=${{ github.event.repo.name }}-${{ needs.get-version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Build binary
-        run: go build -o "${{ steps.extract-metadata.outputs.BINARY_NAME }}" -ldflags "-X main.version=${{ github.ref_name }}" main.go
+        run: go build -o "${{ steps.generate-filename.outputs.BINARY_NAME }}" -ldflags "-X main.version=${{ github.ref_name }}" main.go
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 0
 
       - name: Create tar.gz of binary with license and readme
-        run: tar -czf ${{ steps.extract-metadata.outputs.TAR_GZ_NAME }} ${{ steps.extract-metadata.outputs.BINARY_NAME }} LICENSE.txt LICENSE_en.txt README.md
+        run: tar -czf ${{ steps.generate-filename.outputs.TAR_GZ_NAME }} ${{ steps.generate-filename.outputs.BINARY_NAME }} LICENSE.txt LICENSE_en.txt README.md
 
       - name: Generate SBOM
         uses: anchore/sbom-action@cee1b8e05ae5b2593a75e197229729eabaa9f8ec # v0.20.2
         with:
           format: cyclonedx-json
-          artifact-name: ${{ steps.extract-metadata.outputs.SBOM_NAME }}
+          artifact-name: ${{ steps.generate-filename.outputs.SBOM_NAME }}
           upload-artifact: false
           upload-release-assets: false
 
@@ -125,8 +113,8 @@ jobs:
         with:
           name: artifacts-${{ matrix.os }}-${{ matrix.arch }}
           path: |
-            ${{ steps.extract-metadata.outputs.TAR_GZ_NAME }}
-            ${{ steps.extract-metadata.outputs.SBOM_NAME }}
+            ${{ steps.generate-filename.outputs.TAR_GZ_NAME }}
+            ${{ steps.generate-filename.outputs.SBOM_NAME }}
           if-no-files-found: error
 
   create-checksum:
@@ -306,7 +294,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [create-draft-release, sign-publish-artifact, sign-docker]
+    needs: [changelog, sign-publish-artifact, sign-docker]
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -314,6 +302,8 @@ jobs:
           persist-credentials: false
 
       - name: Create release
+        run: gh release create ${GITHUB_REF_NAME}  -t "Release ${GITHUB_REF_NAME}" -n "${RELEASE_BODY}"
         run: gh release edit ${GITHUB_REF_NAME} --draft=false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          RELEASE_BODY: ${{needs.changelog.outputs.release_body}}
