@@ -94,14 +94,17 @@ jobs:
         id: generate-filename
         shell: bash
         run: |
+          # Get repo name
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+
           # Get version
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
 
           # Set output
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
-          echo "BINARY_NAME=${{ github.event.repo.name }}" >> $GITHUB_OUTPUT
-          echo "SBOM_NAME=${{ github.event.repo.name }}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
-          echo "TAR_GZ_NAME=${{ github.event.repo.name }}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "BINARY_NAME=${REPO_NAME}" >> $GITHUB_OUTPUT
+          echo "SBOM_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
+          echo "TAR_GZ_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Build binary
         run: go build -o "${{ steps.generate-filename.outputs.BINARY_NAME }}" -ldflags "-X main.version=${{ github.ref_name }}" main.go
@@ -282,7 +285,7 @@ jobs:
           shopt -s nullglob
           for tag in ${TAGS}; do
             echo "Generate sbom for ${tag}"
-            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom --from registry ${tag}@${DIGEST}
           done
 
       - name: Attest images with SBOM
