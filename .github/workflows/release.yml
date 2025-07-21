@@ -154,7 +154,8 @@ jobs:
       - name: Create checksum file
         run: |
           shopt -s nullglob
-          for archive in /tmp/artifacts/*.tar.gz; do
+          cd /tmp/artifacts
+          for archive in *.tar.gz; do
             echo "Generate checksum for ${archive}"
             CHECKSUM=$(sha256sum ${archive})
             echo $CHECKSUM >> /tmp/artifacts/checksums.txt
