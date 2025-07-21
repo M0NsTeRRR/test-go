@@ -175,7 +175,7 @@ jobs:
           done
 
       - name: Upload artifact to release
-        run: gh release upload ${{ github.ref }} /tmp/artifacts/* -R ${{ github.repository }}
+        run: gh release upload "Release ${{ github.ref_name }}" /tmp/artifacts/* -R ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
