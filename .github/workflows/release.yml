@@ -42,7 +42,7 @@ jobs:
     steps:
       - name: Get the version
         id: get_version
-        run: echo "VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//') >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(echo '${{ github.ref_name }}' | sed 's/^v//')" >> $GITHUB_OUTPUT
 
   build-artifact:
     name: Build binary
@@ -240,8 +240,6 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=ref,event=pr
-            type=sha
             type=raw,value=latest
             type=semver,pattern={{version}}
 
