@@ -178,7 +178,7 @@ jobs:
           done
 
       - name: Upload artifact to release
-        run: gh release upload ${{ needs.build-artifact.outputs.version }} /tmp/artifacts/* -R ${{ github.repository }}
+        run: gh release upload v${{ needs.build-artifact.outputs.version }} /tmp/artifacts/* -R ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -282,7 +282,7 @@ jobs:
           shopt -s nullglob
           for tag in ${TAGS}; do
             echo "Generate sbom for ${tag}"
-            syft --output cyclonedx-json ${tag}@${DIGEST} > ${tag}@${DIGEST}.sbom
+            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
           done
 
       - name: Attest images with SBOM
