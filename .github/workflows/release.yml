@@ -55,6 +55,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
+    outputs:
+      version: ${{ steps.generate-filename.outputs.VERSION }}
     strategy:
       fail-fast: false
       matrix:
@@ -175,7 +177,7 @@ jobs:
           done
 
       - name: Upload artifact to release
-        run: gh release upload "Release ${{ github.ref_name }}" /tmp/artifacts/* -R ${{ github.repository }}
+        run: gh release upload ${{ needs.build-artifact.outputs.version }} /tmp/artifacts/* -R ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -251,8 +253,8 @@ jobs:
       id-token: write # needed for signing the images with GitHub OIDC Token
     needs: [build-push-docker]
     env:
-      DIGEST: ${{ needs.docker.outputs.digest }}
-      TAGS: ${{ needs.docker.outputs.tags }}
+      DIGEST: ${{ needs.build-push-docker.outputs.digest }}
+      TAGS: ${{ needs.build-push-docker.outputs.tags }}
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
