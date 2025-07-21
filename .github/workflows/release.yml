@@ -303,7 +303,6 @@ jobs:
 
       - name: Create release
         run: gh release create ${GITHUB_REF_NAME}  -t "Release ${GITHUB_REF_NAME}" -n "${RELEASE_BODY}"
-        run: gh release edit ${GITHUB_REF_NAME} --draft=false
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
           RELEASE_BODY: ${{needs.changelog.outputs.release_body}}
