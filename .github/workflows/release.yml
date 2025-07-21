@@ -120,7 +120,7 @@ jobs:
         uses: anchore/sbom-action@cee1b8e05ae5b2593a75e197229729eabaa9f8ec # v0.20.2
         with:
           format: cyclonedx-json
-          artifact-name: ${{ steps.generate-filename.outputs.SBOM_NAME }}
+          output-file: ${{ steps.generate-filename.outputs.SBOM_NAME }}
           upload-artifact: false
           upload-release-assets: false
 
@@ -178,6 +178,7 @@ jobs:
             echo "Attest sbom file ${sbom}"
             sbom_without_ext="${sbom%.sbom}"
             cosign attest-blob -y --type cyclonedx --predicate ${sbom} --output-attestation ${sbom_without_ext}.sbom.intoto.jsonl ${sbom_without_ext}.tar.gz
+            rm ${sbom}
           done
 
       - name: Upload artifact to release
@@ -199,7 +200,7 @@ jobs:
 
   build-push-docker:
     name: Build and publish docker
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write # needed for pushing docker image
@@ -207,20 +208,18 @@ jobs:
       tags: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build-and-push.outputs.digest }}
     strategy:
+      fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
-        with:
-          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
@@ -238,7 +237,6 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest
             type=semver,pattern={{version}}
 
       - name: Build and push
@@ -257,8 +255,8 @@ jobs:
       id-token: write # needed for signing the images with GitHub OIDC Token
     needs: [build-push-docker]
     env:
-      DIGEST: ${{ needs.build-push-docker.outputs.digest }}
       TAGS: ${{ needs.build-push-docker.outputs.tags }}
+      DIGEST: ${{ needs.build-push-docker.outputs.digest }}
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
@@ -285,7 +283,7 @@ jobs:
           shopt -s nullglob
           for tag in ${TAGS}; do
             echo "Generate sbom for ${tag}"
-            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom --from registry ${tag}@${DIGEST}
+            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
           done
 
       - name: Attest images with SBOM
