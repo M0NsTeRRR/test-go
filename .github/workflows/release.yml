@@ -198,6 +198,7 @@ jobs:
             curl https://sum.golang.org/lookup/github.com/${{ github.repository }}@${{ github.ref_name }}
             curl https://proxy.golang.org/github.com/${{ github.repository }}/@v/${{ github.ref_name }}.info
           fi
+
   build-push-docker:
     name: Build and publish docker
     runs-on: ubuntu-latest
