@@ -80,8 +80,8 @@ jobs:
 
           # Set output
           echo "BINARY_NAME=${{ github.event.repo.name }}" >> $GITHUB_OUTPUT
-          echo "SBOM_NAME=${{ github.event.repo.name }}-${{ needs.get-version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
-          echo "TAR_GZ_NAME=${{ github.event.repo.name }}-${{ needs.get-version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "SBOM_NAME=${{ github.event.repo.name }}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
+          echo "TAR_GZ_NAME=${{ github.event.repo.name }}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Build binary
         run: go build -o "${{ steps.generate-filename.outputs.BINARY_NAME }}" -ldflags "-X main.version=${{ github.ref_name }}" main.go
@@ -179,7 +179,7 @@ jobs:
           done
 
       - name: Upload artifact to release
-        run: gh release upload ${{ github.ref }} /tmp/artifacts/*
+        run: gh release upload ${{ github.ref_name }} /tmp/artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
