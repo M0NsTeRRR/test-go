@@ -290,14 +290,18 @@ jobs:
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        env:
+          REPOSITORY: ${{ github.repository }}
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${REPOSITORY@L}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
+        env:
+          REPOSITORY: ${{ github.repository }}
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
+            $(printf 'ghcr.io/${REPOSITORY@L}@sha256:%s ' *)
 
   sign-docker:
     name: Sign Docker
