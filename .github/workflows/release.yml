@@ -242,7 +242,7 @@ jobs:
       - name: Get repository in lower case
         id: repository_lc
         run: |
-          echo "REPOSITORY_LC=${REPOSITORY@L}" >>${GITHUB_ENV}
+          echo "REPOSITORY_LC=${REPOSITORY@L}" >> $GITHUB_OUTPUT
         env:
           REPOSITORY: ${{ github.repository }}
 
