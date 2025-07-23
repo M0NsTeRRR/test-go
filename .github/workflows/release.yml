@@ -242,9 +242,11 @@ jobs:
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        env:
+          REPOSITORY: ${{ github.repository }}
         with:
           platforms: ${{ matrix.os }}/${{ matrix.arch }}
-          tags: ghcr.io/${{ github.repository }}
+          tags: ghcr.io/${REPOSITORY@L}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
 
