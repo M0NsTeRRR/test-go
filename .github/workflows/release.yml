@@ -239,14 +239,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get repository in lower case
+        id: repository_lc
+        run: |
+          echo "REPOSITORY_LC=${REPOSITORY@L}" >>${GITHUB_ENV}
+        env:
+          REPOSITORY: ${{ github.repository }}
+
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        env:
-          REPOSITORY: ${{ github.repository }}
         with:
           platforms: ${{ matrix.os }}/${{ matrix.arch }}
-          tags: ghcr.io/${REPOSITORY@L}
+          tags: ghcr.io/${{ steps.repository_lc.outputs.REPOSITORY_LC }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
 
@@ -292,18 +297,14 @@ jobs:
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
-        env:
-          REPOSITORY: ${{ github.repository }}
         with:
-          images: ghcr.io/${REPOSITORY@L}
+          images: ghcr.io/${{ github.repository }}
 
       - name: Create manifest list and push
         working-directory: ${{ runner.temp }}/digests
-        env:
-          REPOSITORY: ${{ github.repository }}
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${REPOSITORY@L}@sha256:%s ' *)
+            $(printf 'ghcr.io/${{ steps.meta.outputs.tags }}@sha256:%s ' *)
 
   sign-docker:
     name: Sign Docker
