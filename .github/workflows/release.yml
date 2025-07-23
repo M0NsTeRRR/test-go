@@ -132,6 +132,7 @@ jobs:
             ${{ steps.generate-filename.outputs.TAR_GZ_NAME }}
             ${{ steps.generate-filename.outputs.SBOM_NAME }}
           if-no-files-found: error
+          retention-days: 1
 
   sign-publish-artifact:
     name: Sign and publish artifact
@@ -149,33 +150,35 @@ jobs:
         with:
           pattern: artifacts-*
           merge-multiple: true
-          path: /tmp/artifacts
+          path: ${{ runner.temp }}/artifacts
 
       - name: Create checksum file
+        working-directory: ${{ runner.temp }}/artifacts
         run: |
           shopt -s nullglob
-          cd /tmp/artifacts
           for archive in *.tar.gz; do
             echo "Generate checksum for ${archive}"
             CHECKSUM=$(sha256sum ${archive})
-            echo $CHECKSUM >> /tmp/artifacts/checksums.txt
+            echo $CHECKSUM >> checksums.txt
           done
 
       - name: Sign the artifacts with GitHub OIDC Token
+        working-directory: ${{ runner.temp }}/artifacts
         env:
           COSIGN_YES: true
         run: |
           shopt -s nullglob
-          for archive in /tmp/artifacts/*.tar.gz; do
+          for archive in *.tar.gz; do
             echo "Sign archive for ${archive}"
             archive_without_ext="${archive%.tar.gz}"
             cosign sign-blob ${archive} --output-certificate ${archive_without_ext}.pem --output-signature ${archive_without_ext}.sig
           done
 
       - name: Attest SBOM
+        working-directory: ${{ runner.temp }}/artifacts
         run: |
           shopt -s nullglob
-          for sbom in /tmp/artifacts/*.sbom; do
+          for sbom in *.sbom; do
             echo "Attest sbom file ${sbom}"
             sbom_without_ext="${sbom%.sbom}"
             cosign attest-blob -y --type cyclonedx --predicate ${sbom} --output-attestation ${sbom_without_ext}.sbom.intoto.jsonl ${sbom_without_ext}.tar.gz
@@ -183,7 +186,8 @@ jobs:
           done
 
       - name: Upload artifact to release
-        run: gh release upload v${{ needs.build-artifact.outputs.version }} /tmp/artifacts/* -R ${{ github.repository }}
+        working-directory: ${{ runner.temp }}/artifacts
+        run: gh release upload v${{ needs.build-artifact.outputs.version }} * -R ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -201,12 +205,11 @@ jobs:
         env:
           REPOSITORY: ${{ github.repository }}
 
-  build-push-docker:
-    name: Build and publish docker
+  build-docker:
+    name: Build docker
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-      packages: write # needed for pushing docker image
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build-and-push.outputs.digest }}
@@ -214,9 +217,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: linux/amd64
+          - os: linux
+            arch: amd64
             runner: ubuntu-latest
-          - platform: linux/arm64
+          - os: linux
+            arch: arm64
             runner: ubuntu-24.04-arm
     steps:
       - name: Checkout code
@@ -234,28 +239,73 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          platforms: ${{ matrix.os }}/${{ matrix.arch }}
+          tags: ghcr.io/${{ github.repository }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true,oci-mediatypes=true
+
+      - name: Export digest
+        run: |
+          mkdir -p ${{ runner.temp }}/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digests-${{ matrix.os }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge-docker:
+    name: Merge docker
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # needed for pushing docker image
+    needs: [build-docker]
+    steps:
+      - name: Downloads digests
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: digests-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
           images: ghcr.io/${{ github.repository }}
 
-      - name: Build and push
-        id: build-and-push
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          platforms: ${{ matrix.platform }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'ghcr.io/${{ github.repository }}@sha256:%s ' *)
 
   sign-docker:
-    name: Sign docker artifact
+    name: Sign Docker
     runs-on: ubuntu-latest
     permissions:
       packages: write # needed for pushing docker signature
       id-token: write # needed for signing the images with GitHub OIDC Token
-    needs: [build-push-docker]
+    needs: [merge-docker]
     env:
       TAGS: ${{ needs.build-push-docker.outputs.tags }}
       DIGEST: ${{ needs.build-push-docker.outputs.digest }}
