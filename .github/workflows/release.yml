@@ -210,6 +210,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
+      packages: write # needed for pushing docker image
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
       digest: ${{ steps.build-and-push.outputs.digest }}
