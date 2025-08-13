@@ -17,7 +17,7 @@ _test go_
 
 <div align="center">
 
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/m0nsterrr/test-go?label=openssf%20scorecard&style=for-the-badge)](https://scorecard.dev/viewer/?uri=github.com/m0nsterrr/test-go)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/M0NsTeRRR/test-go?label=openssf%20scorecard&style=for-the-badge)](https://scorecard.dev/viewer/?uri=github.com/M0NsTeRRR/test-go)
 
 </div>
 <!-- template:end:header -->
