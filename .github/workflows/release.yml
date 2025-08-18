@@ -215,8 +215,8 @@ jobs:
       contents: read
       packages: write # needed for pushing docker image
     outputs:
-      tags: ${{ steps.meta.outputs.tags }}
-      digest: ${{ steps.build-and-push.outputs.digest }}
+      tags: ${{ steps.build.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
       repository_lc: ${{ steps.repository_lc.outputs.REPOSITORY_LC }}
     strategy:
       fail-fast: false
