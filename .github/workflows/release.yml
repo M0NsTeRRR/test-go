@@ -291,6 +291,8 @@ jobs:
     permissions:
       contents: read
       packages: write # needed for pushing docker image
+    outputs:
+      manifest-name-digest: ${{ steps.manifest.outputs.MANIFEST_NAME_DIGEST }}
     needs: [build-docker]
     steps:
       - name: Downloads digests
@@ -317,10 +319,13 @@ jobs:
           images: ghcr.io/${{ github.repository }}
 
       - name: Create manifest list and push
+        id: manifest
         working-directory: ${{ runner.temp }}/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'ghcr.io/${{ needs.build-docker.outputs.REPOSITORY_LC }}@sha256:%s ' *)
+          MANIFEST_DIGEST=$(docker buildx imagetools inspect "${DOCKER_MANIFEST_NAME_WITH_TAG}" --format "{{json .Manifest.Digest}}" | tr -d '"')
+          echo "MANIFEST_NAME_DIGEST=ghcr.io/${{ steps.repository_lc.outputs.REPOSITORY_LC }}@${MANIFEST_DIGEST}" >> $GITHUB_OUTPUT
 
   sign-docker:
     name: Sign Docker
@@ -328,7 +333,9 @@ jobs:
     permissions:
       packages: write # needed for pushing docker signature
       id-token: write # needed for signing the images with GitHub OIDC Token
-    needs: [build-docker, merge-docker]
+    env:
+      IMAGE_DIGEST: ${{ needs.merge-docker.outputs.manifest-name-digest }}
+    needs: [merge-docker]
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
@@ -343,23 +350,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate image tag
-        run: echo "TAG=ghcr.io/${{ needs.build-docker.outputs.REPOSITORY_LC }}:$(echo '${{ github.ref_name }}' | sed 's/^v//')" >> $GITHUB_ENV
-
       - name: Sign the images with GitHub OIDC Token
         run: |
-          echo "Sign image for ${TAG}"
-          cosign sign -y --recursive ${TAG}
+          echo "Sign image for ${IMAGE_DIGEST}"
+          cosign sign -y --recursive ${IMAGE_DIGEST}
 
       - name: Generate SBOM
         run: |
-          echo "Generate sbom for ${TAG}"
-          syft --output cyclonedx-json=${TAG}.sbom ${TAG}
+          echo "Generate sbom for ${IMAGE_DIGEST}"
+          syft --output cyclonedx-json=${IMAGE_DIGEST}.sbom ${IMAGE_DIGEST}
 
       - name: Attest images with SBOM
         run: |
-          echo "Attest image for ${TAG}"
-          cosign attest -y --recursive --type cyclonedx --predicate ${TAG}.sbom ${TAG}
+          echo "Attest image for ${IMAGE_DIGEST}"
+          cosign attest -y --recursive --type cyclonedx --predicate ${IMAGE_DIGEST}.sbom ${IMAGE_DIGEST}
 
   publish-release:
     name: Publish release
