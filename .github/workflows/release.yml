@@ -363,7 +363,7 @@ jobs:
       - name: Attest images with SBOM
         run: |
           echo "Attest image for ${IMAGE_DIGEST}"
-          cosign attest -y --recursive --type cyclonedx --predicate ${IMAGE_DIGEST}.sbom ${IMAGE_DIGEST}
+          cosign attest -y --type cyclonedx --predicate ${IMAGE_DIGEST}.sbom ${IMAGE_DIGEST}
 
   publish-release:
     name: Publish release
