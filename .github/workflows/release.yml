@@ -324,8 +324,8 @@ jobs:
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf 'ghcr.io/${{ needs.build-docker.outputs.REPOSITORY_LC }}@sha256:%s ' *)
-          MANIFEST_DIGEST=$(docker buildx imagetools inspect "${DOCKER_MANIFEST_NAME_WITH_TAG}" --format "{{json .Manifest.Digest}}" | tr -d '"')
-          echo "MANIFEST_NAME_DIGEST=ghcr.io/${{ steps.repository_lc.outputs.REPOSITORY_LC }}@${MANIFEST_DIGEST}" >> $GITHUB_OUTPUT
+          MANIFEST_DIGEST=$(docker buildx imagetools inspect "ghcr.io/${{ needs.build-docker.outputs.REPOSITORY_LC }}:${{ github.ref_name }}" --format "{{json .Manifest.Digest}}" | tr -d '"')
+          echo "MANIFEST_NAME_DIGEST=ghcr.io/${{ needs.build-docker.outputs.REPOSITORY_LC }}@${MANIFEST_DIGEST}" >> $GITHUB_OUTPUT
 
   sign-docker:
     name: Sign Docker
