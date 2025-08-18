@@ -329,7 +329,7 @@ jobs:
     permissions:
       packages: write # needed for pushing docker signature
       id-token: write # needed for signing the images with GitHub OIDC Token
-    needs: [merge-docker]
+    needs: [build-docker, merge-docker]
     env:
       TAGS: ${{ needs.build-docker.outputs.tags }}
       DIGEST: ${{ needs.build-docker.outputs.digest }}
