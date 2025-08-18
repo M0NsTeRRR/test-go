@@ -66,11 +66,11 @@ cosign verify-blob \
 ```
 
 ### Docker
-```
+```bash
 version="1.0.0"
 
 # Pull image
-`docker pull ghcr.io/m0nsterrr/test-go:${version}`.
+docker pull ghcr.io/m0nsterrr/test-go:${version}
 
 # Verify image signature
 cosign verify ghcr.io/m0nsterrr/test-go:${version} \
