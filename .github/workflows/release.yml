@@ -216,7 +216,7 @@ jobs:
     env:
       TAGS: ${{ needs.merge-docker.outputs.tags }}
       DIGEST: ${{ needs.merge-docker.outputs.digest }}
-    needs: [sign-publish-artifact]
+    needs: [sign-publish-artifact, publish-release]
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
@@ -435,7 +435,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [create-draft-release, verify-artifact, verify-docker]
+    needs: [create-draft-release, verify-docker]
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
