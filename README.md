@@ -70,7 +70,7 @@ cosign verify-blob \
 version="1.0.0"
 
 # Pull image
-docker pull ghcr.io/m0nsterrr/test-go:${version}
+docker pull ghcr.io/m0nsterrr/test-go:v${version}
 
 # Verify image signature
 cosign verify ghcr.io/m0nsterrr/test-go:v${version} \
