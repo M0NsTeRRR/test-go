@@ -363,16 +363,21 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          echo "Generate sbom for ${IMAGE_DIGEST}"
-          syft --output cyclonedx-json=${IMAGE_DIGEST}.sbom ${IMAGE_DIGEST}
+          for tag in ${TAGS}; do
+            echo "Generate sbom for ${tag}@${DIGEST}"
+            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+          done
 
       - name: Attest images with SBOM
         run: |
-          echo "Attest image for ${IMAGE_DIGEST}"
-          cosign attest -y --type cyclonedx --predicate ${IMAGE_DIGEST}.sbom ${IMAGE_DIGEST}
+          for tag in ${TAGS}; do
+            echo "Attest image for ${tag}@${DIGEST}"
+            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+            cosign attest -y --type cyclonedx --predicate ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+          done
 
-  verify-sign-docker:
-    name: Verify 
+  verify-docker:
+    name: Verify docker
     runs-on: ubuntu-latest
     permissions:
       packages: read
@@ -398,7 +403,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    needs: [create-draft-release, sign-publish-artifact, sign-docker]
+    needs: [create-draft-release, sign-publish-artifact, verify-docker]
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
