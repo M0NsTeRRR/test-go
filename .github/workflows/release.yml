@@ -223,6 +223,8 @@ jobs:
 
       - name: Download assets from release
         run: gh release download ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify checksum
         run: sha256sum --ignore-missing -c checksums.txt
