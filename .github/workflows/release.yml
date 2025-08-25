@@ -389,12 +389,12 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
 
-      - name: Attest images with SBOM
+      - name: Verify docker signature
         run: |
           for tag in ${TAGS}; do
             echo "Verify image for ${tag}@${DIGEST}"
             cosign verify ${tag}@${DIGEST} \
-              --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/v${{ github.ref_name }}" \
+              --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
               --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
           done
 
