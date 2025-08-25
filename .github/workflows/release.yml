@@ -227,7 +227,7 @@ jobs:
       - name: Verify checksum
         run: sha256sum --ignore-missing -c checksums.txt
 
-    - name: Verify signature
+      - name: Verify signature
         run: |
           for binary in ./*.tar.gz; do
             cosign verify-blob \
