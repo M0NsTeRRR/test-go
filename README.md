@@ -73,8 +73,8 @@ version="1.0.0"
 docker pull ghcr.io/m0nsterrr/test-go:${version}
 
 # Verify image signature
-cosign verify ghcr.io/m0nsterrr/test-go:${version} \
-  --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
+cosign verify ghcr.io/m0nsterrr/test-go:v${version} \
+  --certificate-identity "https://github.com/M0NsTeRRR/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
 ```
 <!-- template:end:usage -->
