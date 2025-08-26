@@ -104,10 +104,10 @@ jobs:
           VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
 
           # Set output
-          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          echo "VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           echo "BINARY_NAME=${REPO_NAME}" >> $GITHUB_OUTPUT
-          echo "SBOM_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
-          echo "TAR_GZ_NAME=${REPO_NAME}-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
+          echo "SBOM_NAME=${REPO_NAME}-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.sbom" >> $GITHUB_OUTPUT
+          echo "TAR_GZ_NAME=${REPO_NAME}-${{ github.ref_name }}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Build binary
         run: go build -trimpath -a -o "${{ steps.generate-filename.outputs.BINARY_NAME }}" -ldflags '-w -X main.version=${{ github.ref_name }} -X main.buildTime=${{ env.TIMESTAMP }} -extldflags "-static"'
@@ -213,10 +213,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      TAGS: ${{ needs.merge-docker.outputs.tags }}
-      DIGEST: ${{ needs.merge-docker.outputs.digest }}
-    needs: [sign-publish-artifact, publish-release]
+    needs: [publish-release]
     steps:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
@@ -227,16 +224,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify checksum
-        run: sha256sum --ignore-missing -c checksums.txt
+        run: sha256sum -c checksums.txt
 
       - name: Verify signature
         run: |
           for binary in ./*.tar.gz; do
+            binary_basename="${binary%.tar.gz}"
             cosign verify-blob \
-              --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
+              --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
               --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-              --cert "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-linux-amd64.pem" \
-              --signature "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-linux-amd64.sig" \
+              --cert "https://github.com/m0nsterrr/test-go/releases/download/${{ github.ref_name }}/${binary_basename}.pem" \
+              --signature "https://github.com/m0nsterrr/test-go/releases/download/${{ github.ref_name }}/${binary_basename}.sig" \
               ./${binary}
           done
 
