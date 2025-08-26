@@ -48,9 +48,10 @@ Install the package `go install github.com/m0nsterrr/test-go@latest`.
 ### Binary
 ```bash
 version="1.0.0"
+platform="linux-amd64"
 
 # Download binary
-wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-linux-amd64.tar.gz"
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.tar.gz"
 
 # Verify checksum
 wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/checksums.txt"
@@ -60,9 +61,12 @@ sha256sum --ignore-missing -c checksums.txt
 cosign verify-blob \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  --cert "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-linux-amd64.pem" \
-  --signature "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-linux-amd64.sig" \
-  ./test-go-${version}-linux-amd64.tar.gz
+  --cert "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.pem" \
+  --signature "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.sig" \
+  ./test-go-${version}-${platform}.tar.gz
+
+# Extract binary
+tar -xvzf test-go-${version}-${platform}.tar.gz
 ```
 
 ### Docker
