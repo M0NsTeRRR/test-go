@@ -231,10 +231,10 @@ jobs:
           for binary in ./*.tar.gz; do
             binary_basename="${binary%.tar.gz}"
             cosign verify-blob \
-              --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
+              --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
               --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-              --cert "https://github.com/m0nsterrr/test-go/releases/download/${{ github.ref_name }}/${binary_basename}.pem" \
-              --signature "https://github.com/m0nsterrr/test-go/releases/download/${{ github.ref_name }}/${binary_basename}.sig" \
+              --cert "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${binary_basename}.pem" \
+              --signature "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${binary_basename}.sig" \
               ./${binary}
           done
 
