@@ -69,16 +69,15 @@ cosign verify-blob \
 tar -xvzf .tar.gz
 
 # Scan SBOM attestation
-wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.intoto.jsonl"
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.bundle.jsonl"
 cosign verify-blob-attestation .tar.gz
   --type=cyclonedx \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  --new-bundle-format \
-  --bundle .sbom.intoto.jsonl
+  --bundle .sbom.bundle.jsonl
 
 # Scan SBOM attestation (SBOM attestation was saved from the previous step)
-trivy sbom ./.sbom.intoto.jsonl
+trivy sbom ./.sbom.bundle.jsonl
 ```
 
 ### Docker
@@ -96,7 +95,6 @@ cosign verify ghcr.io/m0nsterrr/test-go:v${version} \
 # Verify image attestation
 cosign verify-attestation ghcr.io/m0nsterrr/test-go:v${version} \
   --type=cyclonedx \
-  --new-bundle-format \
   --certificate-identity "https://github.com/M0NsTeRRR/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" > ./sbom.cdx.intoto.jsonl
 
