@@ -188,22 +188,15 @@ jobs:
             sbom_without_ext="${sbom%.sbom}"
 
             echo "Attest sbom file ${sbom}"
-            cosign attest-blob -y --type cyclonedx \
+            cosign attest-blob -y \
+              --type cyclonedx \
+              --new-bundle-format \
               --predicate ${sbom} \
-              --output-attestation ${sbom_without_ext}.sbom.intoto.jsonl \
-              --output-signature ${sbom_without_ext}.sbom.sig \
+              --bundle ${sbom_without_ext}.sbom.bundle \
               ${sbom_without_ext}.tar.gz
 
-            echo "Create bundle ${sbom}"
-            cosign bundle create \
-              --attestation ${sbom_without_ext}.sbom.intoto.jsonl \
-              --signature ${sbom_without_ext}.sbom.sig \
-              --artifact ${sbom_without_ext}.tar.gz \
-              --out ${sbom_without_ext}.sbom.bundle
-
-            rm ${sbom} ${sbom_without_ext}.sbom.sig ${sbom_without_ext}.intoto.jsonl
+            rm ${sbom}
           done
-
 
       - name: Upload artifact to release
         working-directory: ${{ runner.temp }}/artifacts
@@ -423,7 +416,10 @@ jobs:
           for tag in ${TAGS}; do
             echo "Attest image for ${tag}@${DIGEST}"
             syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
-            cosign attest -y --type cyclonedx --predicate ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+            cosign attest -y \
+              --type cyclonedx \
+              --predicate ${tag}@${DIGEST}.sbom \
+              ${tag}@${DIGEST}
           done
 
   verify-docker:
