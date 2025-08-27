@@ -69,15 +69,15 @@ cosign verify-blob \
 tar -xvzf .tar.gz
 
 # Scan SBOM attestation
-wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.bundle"
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.intoto.jsonl"
 cosign verify-blob-attestation .tar.gz
   --type=cyclonedx \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  --bundle .sbom.bundle
+  --bundle .sbom.intoto.jsonl
 
 # Scan SBOM attestation (SBOM attestation was saved from the previous step)
-trivy sbom ./.sbom.bundle
+trivy sbom ./.sbom.intoto.jsonl
 ```
 
 ### Docker
