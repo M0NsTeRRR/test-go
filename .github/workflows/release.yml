@@ -184,7 +184,7 @@ jobs:
           for sbom in *.sbom; do
             echo "Attest sbom file ${sbom}"
             sbom_without_ext="${sbom%.sbom}"
-            cosign attest-blob -y --type cyclonedx --predicate ${sbom} --output-attestation ${sbom_without_ext}.sbom.intoto.jsonl ${sbom_without_ext}.tar.gz
+            cosign attest-blob -y --type cyclonedx --new-bundle-format --predicate ${sbom} --output-attestation ${sbom_without_ext}.sbom.intoto.jsonl ${sbom_without_ext}.tar.gz
             rm ${sbom}
           done
 
@@ -229,6 +229,7 @@ jobs:
       - name: Verify signature
         run: |
           for binary in ./*.tar.gz; do
+            echo "Verify binary for ${binary}"
             binary_basename="${binary%.tar.gz}"
             cosign verify-blob \
               --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
@@ -403,7 +404,7 @@ jobs:
           for tag in ${TAGS}; do
             echo "Attest image for ${tag}@${DIGEST}"
             syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
-            cosign attest -y --type cyclonedx --predicate ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+            cosign attest -y --type cyclonedx --new-bundle-format --predicate ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
           done
 
   verify-docker:
@@ -424,6 +425,17 @@ jobs:
           for tag in ${TAGS}; do
             echo "Verify image for ${tag}@${DIGEST}"
             cosign verify ${tag}@${DIGEST} \
+              --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+          done
+
+      - name: Verify docker attestation
+        run: |
+          for tag in ${TAGS}; do
+            echo "Verify image for ${tag}@${DIGEST}"
+            cosign verify-attestation ${tag}@${DIGEST} \
+              --type=cyclonedx \
+              --new-bundle-format \
               --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
               --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
           done
