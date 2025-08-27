@@ -195,10 +195,10 @@ jobs:
               ${sbom_without_ext}.tar.gz
 
             echo "Create bundle ${sbom}"
-            cosign create-bundle \
+            cosign bundle create \
               --attestation ${sbom_without_ext}.sbom.intoto.jsonl \
               --signature ${sbom_without_ext}.sbom.sig \
-              --bundle ${sbom_without_ext}.sbom.bundle.jsonl
+              --out ${sbom_without_ext}.sbom.bundle
 
             rm ${sbom} ${sbom_without_ext}.sbom.sig ${sbom_without_ext}.intoto.jsonl
           done
