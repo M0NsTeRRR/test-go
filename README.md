@@ -51,7 +51,7 @@ version="1.0.0"
 platform="linux-amd64"
 
 # Download binary
-wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.tar.gz"
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.tar.gz"
 
 # Verify checksum
 wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/checksums.txt"
@@ -61,12 +61,24 @@ sha256sum --ignore-missing -c checksums.txt
 cosign verify-blob \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  --cert "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.pem" \
-  --signature "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.sig" \
-  ./test-go-${version}-${platform}.tar.gz
+  --cert "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.pem" \
+  --signature "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sig" \
+  ./.tar.gz
 
 # Extract binary
-tar -xvzf test-go-${version}-${platform}.tar.gz
+tar -xvzf .tar.gz
+
+# Scan SBOM attestation
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.intoto.jsonl"
+cosign verify-blob-attestation .tar.gz
+  --type=cyclonedx \
+  --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  --new-bundle-format \
+  --bundle .sbom.intoto.jsonl
+
+# Scan SBOM attestation (SBOM attestation was saved from the previous step)
+trivy sbom ./.sbom.intoto.jsonl
 ```
 
 ### Docker
@@ -80,6 +92,16 @@ docker pull ghcr.io/m0nsterrr/test-go:v${version}
 cosign verify ghcr.io/m0nsterrr/test-go:v${version} \
   --certificate-identity "https://github.com/M0NsTeRRR/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+# Verify image attestation
+cosign verify-attestation ghcr.io/m0nsterrr/test-go:v${version} \
+  --type=cyclonedx \
+  --new-bundle-format \
+  --certificate-identity "https://github.com/M0NsTeRRR/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" > ./sbom.cdx.intoto.jsonl
+
+# Scan SBOM attestation (SBOM attestation was saved from the previous step)
+trivy sbom ./sbom.cdx.intoto.jsonl
 ```
 <!-- template:end:usage -->
 
