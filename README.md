@@ -57,7 +57,7 @@ wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.tar.gz
 wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/checksums.txt"
 sha256sum --ignore-missing -c checksums.txt
 
-# Verify signature
+# Verify binary signature
 cosign verify-blob \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
@@ -68,16 +68,17 @@ cosign verify-blob \
 # Extract binary
 tar -xvzf .tar.gz
 
-# Scan SBOM attestation
-wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.intoto.jsonl"
+# Verify SBOM attestation
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.bundle"
 cosign verify-blob-attestation .tar.gz
   --type=cyclonedx \
+  --new-bundle-format \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  --bundle .sbom.intoto.jsonl
+  --bundle .sbom.bundle
 
 # Scan SBOM attestation (SBOM attestation was saved from the previous step)
-trivy sbom ./.sbom.intoto.jsonl
+trivy sbom ./.sbom.bundle
 ```
 
 ### Docker
@@ -96,10 +97,10 @@ cosign verify ghcr.io/m0nsterrr/test-go:v${version} \
 cosign verify-attestation ghcr.io/m0nsterrr/test-go:v${version} \
   --type=cyclonedx \
   --certificate-identity "https://github.com/M0NsTeRRR/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
-  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" > ./sbom.cdx.intoto.jsonl
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" > ./extracted-sbom.cdx.json
 
 # Scan SBOM attestation (SBOM attestation was saved from the previous step)
-trivy sbom ./sbom.cdx.intoto.jsonl
+trivy sbom ./extracted-sbom.cdx.json
 ```
 <!-- template:end:usage -->
 
