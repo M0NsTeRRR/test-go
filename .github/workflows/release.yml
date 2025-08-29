@@ -120,12 +120,12 @@ jobs:
         run: tar -czf ${{ steps.generate-filename.outputs.TAR_GZ_NAME }} ${{ steps.generate-filename.outputs.BINARY_NAME }} LICENSE.txt LICENSE_en.txt README.md
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@da167eac915b4e86f08b264dbdbc867b61be6f0c # v0.20.5
+        uses: aquasecurity/trivy-action@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808 # v0.33.0
         with:
-          format: cyclonedx-json
-          output-file: ${{ steps.generate-filename.outputs.SBOM_NAME }}
-          upload-artifact: false
-          upload-release-assets: false
+          scan-type: fs
+          scan-ref: .
+          format: cyclonedx
+          output: ${{ steps.generate-filename.outputs.SBOM_NAME }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -228,6 +228,9 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
 
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808 # v0.33.0
+
       - name: Download assets from release
         run: gh release download ${{ github.ref_name }} -R ${{ github.repository }}
         env:
@@ -249,6 +252,20 @@ jobs:
               --cert "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${binary_basename}.pem" \
               --signature "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${binary_basename}.sig" \
               ./${binary}
+          done
+
+      - name: Verify sbom attestation
+        run: |
+          for sbom in ./*.sbom.bundle; do
+            sbom_basename="${sbom%.tar.gz}"
+
+            echo "Verify sbom for ${sbom}"
+            cosign verify-blob-attestation \
+              --type=cyclonedx \
+              --new-bundle-format \
+              --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
+              --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+              --bundle ./${sbom}
           done
 
   build-docker:
@@ -385,8 +402,8 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
 
-      - name: Install Syft
-        uses: anchore/sbom-action/download-syft@da167eac915b4e86f08b264dbdbc867b61be6f0c # v0.20.5
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808 # v0.33.0
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
@@ -408,7 +425,7 @@ jobs:
         run: |
           for tag in ${TAGS}; do
             echo "Generate sbom for ${tag}@${DIGEST}"
-            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+            trivy image --format cyclonedx --output ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
           done
 
       - name: Attest images with SBOM
