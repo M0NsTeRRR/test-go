@@ -424,18 +424,19 @@ jobs:
       - name: Generate SBOM
         run: |
           for tag in ${TAGS}; do
+            sbom_filename=$(echo "$tag" | cut -d'/' -f3-)
             echo "Generate sbom for ${tag}@${DIGEST}"
-            trivy image --format cyclonedx --output ${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
+            trivy image --format cyclonedx --output ${sbom_filename}.sbom ${tag}@${DIGEST}
           done
 
       - name: Attest images with SBOM
         run: |
           for tag in ${TAGS}; do
+            sbom_filename=$(echo "$tag" | cut -d'/' -f3-)
             echo "Attest image for ${tag}@${DIGEST}"
-            syft --output cyclonedx-json=${tag}@${DIGEST}.sbom ${tag}@${DIGEST}
             cosign attest -y \
               --type cyclonedx \
-              --predicate ${tag}@${DIGEST}.sbom \
+              --predicate ${sbom_filename}.sbom \
               ${tag}@${DIGEST}
           done
 
