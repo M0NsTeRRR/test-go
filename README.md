@@ -51,7 +51,7 @@ version="1.0.0"
 platform="linux-amd64"
 
 # Download binary
-wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.tar.gz"
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.tar.gz"
 
 # Verify checksum
 wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/checksums.txt"
@@ -61,24 +61,24 @@ sha256sum --ignore-missing -c checksums.txt
 cosign verify-blob \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  --cert "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.pem" \
-  --signature "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sig" \
-  ./.tar.gz
+  --cert "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.pem" \
+  --signature "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.sig" \
+  ./test-go-${version}-${platform}.tar.gz
 
 # Extract binary
-tar -xvzf .tar.gz
+tar -xvzf test-go-${version}-${platform}.tar.gz
 
 # Verify SBOM attestation
-wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/.sbom.bundle"
-cosign verify-blob-attestation .tar.gz
+wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.sbom.bundle"
+cosign verify-blob-attestation test-go-${version}-${platform}.tar.gz
   --type=cyclonedx \
   --new-bundle-format \
   --certificate-identity "https://github.com/m0nsterrr/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  --bundle .sbom.bundle
+  --bundle test-go-${version}-${platform}.sbom.bundle
 
 # Scan SBOM attestation (SBOM attestation was saved from the previous step)
-trivy sbom ./.sbom.bundle
+trivy sbom ./test-go-${version}-${platform}.sbom.bundle
 ```
 
 ### Docker
