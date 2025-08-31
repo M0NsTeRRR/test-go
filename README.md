@@ -27,8 +27,9 @@ _test go_
 ## 🔗 Table of Contents
 
 - [Usage](#-usage)
-    - [Go CLI](#%EF%B8%8F-go-cli)
-    - [Docker](#%EF%B8%8F-docker)
+    - [Go CLI](#-go-cli)
+    - [Binary](#-binary)
+    - [Docker](#-docker)
 - [Dev](#%EF%B8%8F-dev)
     - [Run linter and formatter](#run-linter-and-formatter)
     - [Run test](#run-test)
@@ -74,19 +75,20 @@ tar -xvzf test-go-${version}-${platform}.tar.gz
 
 # Verify SBOM attestation (recommended but not required)
 wget "https://github.com/m0nsterrr/test-go/releases/download/v${version}/test-go-${version}-${platform}.sbom.bundle"
-cosign verify-blob-attestation test-go-${version}-${platform}.tar.gz
+cosign verify-blob-attestation \
   --type=cyclonedx \
   --new-bundle-format \
   --certificate-identity "https://github.com/M0NsTeRRR/test-go/.github/workflows/release.yml@refs/tags/v${version}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
   --bundle test-go-${version}-${platform}.sbom.bundle
+  ./test-go-${version}-${platform}.tar.gz
 
 # Scan SBOM attestation, SBOM attestation was saved from the previous step  (recommended but not required)
 jq -r '.dsseEnvelope.payload' test-go-${version}-${platform}.sbom.bundle | base64 -d | jq -r '.predicate' > ./test-go-${version}-${platform}-extracted.sbom.bundle
 trivy sbom ./test-go-${version}-${platform}-extracted.sbom.bundle
 ```
 
-### 🐋 Docker
+### 🐳 Docker
 ```bash
 version="1.0.0"
 
