@@ -256,8 +256,8 @@ jobs:
 
       - name: Verify sbom attestation
         run: |
-          for sbom in ./*.sbom.bundle; do
-            sbom_basename="${sbom%.tar.gz}"
+          for binary in *.tar.gz; do
+            binary_basename="${binary%.tar.gz}"
 
             echo "Verify sbom for ${sbom}"
             cosign verify-blob-attestation \
@@ -265,7 +265,8 @@ jobs:
               --new-bundle-format \
               --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/${{ github.ref_name }}" \
               --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-              --bundle ./${sbom}
+              --bundle ./${binary_basename}.sbom.bundle \
+              ./${binary}
           done
 
   build-docker:
