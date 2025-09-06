@@ -66,47 +66,39 @@ jobs:
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
-          CGO_ENABLED: 0---
-  # THIS FILE IS GENERATED! DO NOT EDIT! Maintained by Pulumi
-  # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-  name: Docker build
-  on:
-    - pull_request
-  permissions: {}
-  jobs:
-    build:
-      name: Build
-      runs-on: ${{ matrix.runner }}
-      permissions:
-        contents: read
-        pull-requests: read
-      strategy:
-        fail-fast: false
-        matrix:
-          include:
-          - os: linux
-            arch: amd64
-            runner: ubuntu-latest
-          - os: linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-          with:
-            persist-credentials: false
+          CGO_ENABLED: 0
+  build-docker:
+    name: Build docker
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: linux
+          arch: amd64
+          runner: ubuntu-latest
+        - os: linux
+          arch: arm64
+          runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
 
-        - name: Set up Docker Buildx
-          uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
-        - name: Get Git commit timestamps
-          run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
+      - name: Get Git commit timestamps
+        run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
 
-        - name: Build and push
-          uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-          with:
-            platforms: ${{ matrix.os }}/${{ matrix.arch }}
-            push: false
-          env:
-            SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
-            VERSION: ${{ github.ref_name }}
+      - name: Build and push
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          platforms: ${{ matrix.os }}/${{ matrix.arch }}
+          push: false
+        env:
+          SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
+          VERSION: ${{ github.ref_name }}
