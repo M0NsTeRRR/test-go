@@ -61,24 +61,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: linux
-            arch: amd64
-            runner: ubuntu-latest
-          - os: linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-          - os: darwin
-            arch: amd64
-            runner: macos-13
-          - os: darwin
-            arch: arm64
-            runner: macos-latest
-          - os: windows
-            arch: amd64
-            runner: windows-latest
-          - os: windows
-            arch: arm64
-            runner: windows-11-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -120,7 +102,7 @@ jobs:
         run: tar -czf ${{ steps.generate-filename.outputs.TAR_GZ_NAME }} ${{ steps.generate-filename.outputs.BINARY_NAME }} LICENSE.txt LICENSE_en.txt README.md
 
       - name: Generate SBOM
-        uses: aquasecurity/trivy-action@f9424c10c36e288d5fa79bd3dfd1aeb2d6eae808 # v0.33.0
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # v0.33.1
         with:
           scan-type: fs
           scan-ref: .
@@ -282,12 +264,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: linux
-            arch: amd64
-            runner: ubuntu-latest
-          - os: linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
