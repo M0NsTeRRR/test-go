@@ -50,7 +50,6 @@ _test go_
 ### 🐹 Go CLI
 Install the package `go install github.com/m0nsterrr/test-go@latest`.
 
-
 ### 🪛 Binary
 ```bash
 version="1.0.0"
@@ -89,7 +88,6 @@ jq -r '.dsseEnvelope.payload' test-go-${version}-${platform}.sbom.bundle | base6
 trivy sbom ./test-go-${version}-${platform}-extracted.sbom.bundle
 ```
 
-
 ### 🐳 Docker
 ```bash
 version="1.0.0"
@@ -111,7 +109,6 @@ cosign verify-attestation ghcr.io/m0nsterrr/test-go:v${version} \
 # Scan SBOM attestation, SBOM attestation was saved from the previous step  (recommended but not required)
 trivy sbom ./extracted-sbom.cdx.json
 ```
-
 <!-- template:end:usage -->
 
 <!-- template:begin:dev -->
@@ -135,7 +132,6 @@ go test
 ### Devcontainer
 
 A dev container is available; the documentation can be found on how to use it [here](https://code.visualstudio.com/docs/devcontainers/containers).
-
 <!-- template:end:dev -->
 
 <!-- template:begin:support -->
