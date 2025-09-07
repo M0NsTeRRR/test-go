@@ -25,4 +25,3 @@ insert_final_newline = ignore
 # YAML
 [*.{yaml,yml}]
 indent_size = 2
-
