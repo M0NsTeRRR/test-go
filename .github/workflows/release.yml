@@ -490,3 +490,4 @@ jobs:
         run: gh release edit ${GITHUB_REF_NAME} --draft=false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
