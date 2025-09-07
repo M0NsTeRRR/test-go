@@ -114,6 +114,7 @@ jobs:
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 0
 
+
   build-docker:
     name: Build docker
     runs-on: ${{ matrix.runner }}
@@ -149,3 +150,5 @@ jobs:
         env:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
           VERSION: ${GITHUB_REF_NAME}
+
+
