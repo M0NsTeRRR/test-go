@@ -6,7 +6,6 @@ on:
   - pull_request
 permissions: {}
 jobs:
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
