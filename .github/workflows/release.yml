@@ -89,6 +89,7 @@ jobs:
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version: stable
+          cache: false
 
       - name: Get Git commit timestamps
         run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
@@ -101,7 +102,7 @@ jobs:
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
 
           # Get version
-          VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          VERSION=$(echo "${GITHUB_REF_NAME}" | sed 's/^v//')
 
           # Set output
           echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
